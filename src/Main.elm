@@ -6,36 +6,47 @@ import Debug exposing (toString)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Random exposing (Seed, generate)
+import Random.List
 
 
-type alias Model =
+type alias ModelGame =
     { game : Game
     }
+
+
+type Model
+    = Start
+    | InGame ModelGame
 
 
 type Msg
     = Initialise (List Int)
 
 
-view : a -> Html Msg
 view model =
     div []
-        [ button [ onClick Decrement ] [ text "-" ]
+        [ button [] [ text "-" ]
         , text (toString model)
-        , button [ onClick Increment ] [ text "+" ]
+        , button [] [ text "+" ]
         ]
 
 
-update : Msg -> number -> number
 update msg model =
     case msg of
-        Decrement ->
-            model - 1
-
-        Increment ->
-            model + 1
+        Initialise shuffled ->
+            ( InGame { game = initGame shuffled }, Cmd.none )
 
 
-main : Program () number Msg
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
+init : () -> ( Model, Cmd Msg )
+init flags =
+    ( Start, generate Initialise (Random.List.shuffle (List.range 0 52)) )
+
+
 main =
-    Browser.sandbox { init = 0, view = view, update = update }
+    Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }

@@ -51,9 +51,8 @@ type alias Goal =
 
 
 type alias Column =
-    { cards : List Card
-    , displayed : Bool
-    }
+    -- hidden cards, displayed cards
+    ( List Card, List Card )
 
 
 type alias Game =
@@ -67,13 +66,15 @@ type alias Game =
 initGame shuffledList =
     let
         columnList cardList n =
-            List.take (n + 1) (List.drop ((n * (n + 1)) // 2) cardList)
+            let
+                fullList =
+                    List.take (n + 1) (List.drop ((n * (n + 1)) // 2) cardList)
+            in
+            ( List.take n fullList, List.drop n fullList )
     in
     { goals = []
     , preview = []
     , pile = initDeck (List.drop 28 shuffledList)
     , columns =
-        List.map
-            (\x -> { cards = initDeck x, displayed = True })
-            (List.map (columnList shuffledList) (List.range 0 6))
+        List.map (columnList (initDeck shuffledList)) (List.range 0 6)
     }
