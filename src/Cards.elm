@@ -1,4 +1,7 @@
-module Cards exposing (Game, initGame)
+--module Cards exposing (Card, Game, Suit, initGame)
+
+
+module Cards exposing (Card(..), Game, Suit(..), initGame)
 
 import Basics exposing (modBy)
 
@@ -51,8 +54,9 @@ type alias Goal =
 
 
 type alias Column =
-    -- hidden cards, displayed cards
-    ( List Card, List Card )
+    { cards : List Card
+    , flipsAt : Int
+    }
 
 
 type alias Game =
@@ -63,6 +67,7 @@ type alias Game =
     }
 
 
+initGame : List Int -> Game
 initGame shuffledList =
     let
         columnList cardList n =
@@ -70,7 +75,7 @@ initGame shuffledList =
                 fullList =
                     List.take (n + 1) (List.drop ((n * (n + 1)) // 2) cardList)
             in
-            ( List.take n fullList, List.drop n fullList )
+            { cards = fullList, flipsAt = n }
     in
     { goals = []
     , preview = []
