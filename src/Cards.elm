@@ -1,7 +1,7 @@
 --module Cards exposing (Card, Game, Suit, initGame)
 
 
-module Cards exposing (Card(..), Game, Suit(..), chrBase, initGame, suitColour)
+module Cards exposing (Card(..), Game, Suit(..), cardBackColour, chrBack, chrBase, chrCard, dealPile, initGame, previewSize, resetPile, suitColour)
 
 import Basics exposing (modBy)
 
@@ -85,6 +85,16 @@ initGame shuffledList =
     }
 
 
+resetPile : Game -> Game
+resetPile game =
+    { game | pile = game.preview, preview = [] }
+
+
+dealPile : Game -> Game
+dealPile game =
+    { game | preview = game.preview ++ List.take previewSize game.pile, pile = List.drop previewSize game.pile }
+
+
 chrBase s =
     case s of
         Spades ->
@@ -98,6 +108,22 @@ chrBase s =
 
         Clubs ->
             0x0001F0D0
+
+
+chrBack =
+    0x0001F0A0
+
+
+chrCard s f =
+    chrBase s
+        + f
+        -- bypass the "knight"
+        + (if f > 10 then
+            2
+
+           else
+            1
+          )
 
 
 suitColour s highlight =
@@ -121,3 +147,11 @@ suitColour s highlight =
 
     else
         Tuple.first baseColour
+
+
+cardBackColour =
+    "#000000"
+
+
+previewSize =
+    3

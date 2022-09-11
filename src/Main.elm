@@ -3,7 +3,7 @@ module Main exposing (main)
 --import Cards exposing (Card, Game, Suit, initGame)
 
 import Browser exposing (sandbox)
-import Cards exposing (Card(..), Game, Suit(..), chrBase, initGame, suitColour)
+import Cards exposing (Card(..), Game, Suit(..), cardBackColour, chrBack, chrCard, dealPile, initGame, previewSize, resetPile, suitColour)
 import Debug exposing (toString)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -16,12 +16,6 @@ import Random.List
 --------
 -- MODEL
 -------
-
-
-type Msg
-    = Initialise (List Int)
-    | Select Selection
-    | Unselect
 
 
 type Selection
@@ -84,25 +78,17 @@ viewColumn x y selected j column =
 
         cardColour i s sel =
             if i < column.flipsAt then
-                "#000000"
+                cardBackColour
 
             else
                 suitColour s sel
 
         cardChar i (Card s f) =
             (if i < column.flipsAt then
-                0x0001F0A0
+                chrBack
 
              else
-                chrBase s
-                    + f
-                    -- bypass the "knight"
-                    + (if f > 10 then
-                        2
-
-                       else
-                        1
-                      )
+                chrCard s f
             )
                 |> Char.fromCode
                 |> String.fromChar
@@ -135,13 +121,90 @@ viewColumn x y selected j column =
         column.cards
 
 
+viewPile : List Card -> Float -> Float -> Html Msg
+viewPile pile x y =
+    button
+        ([ style "position" "absolute"
+         , style "left" (String.fromFloat x ++ "em")
+         , style "top" (String.fromFloat y ++ "em")
+         , style "color" cardBackColour
+         , onClick
+            (if List.isEmpty pile then
+                ResetPile
+
+             else
+                DealPile
+            )
+         ]
+            ++ cardStyles
+        )
+        [ text
+            (if List.isEmpty pile then
+                -- Em Space
+                0x2003 |> Char.fromCode |> String.fromChar
+
+             else
+                chrBack
+                    |> Char.fromCode
+                    |> String.fromChar
+            )
+        ]
+
+
+viewPreview : List Card -> Maybe Selection -> Float -> Float -> Html Msg
+viewPreview pile selected x y =
+    let
+        isSelected ii =
+            case selected of
+                Just SelectedPreview ->
+                    ii == previewSize - 1
+
+                _ ->
+                    False
+
+        previewCard i (Card s f) =
+            button
+                ([ style "position" "absolute"
+                 , style "left" (String.fromFloat (x + 0.25 * toFloat i) ++ "em")
+                 , style "top" (String.fromFloat y ++ "em")
+                 , style "color" (suitColour s (isSelected i))
+                 ]
+                    ++ cardStyles
+                    ++ (if i == previewSize - 1 then
+                            [ onClick
+                                (if isSelected i then
+                                    Unselect
+
+                                 else
+                                    Select SelectedPreview
+                                )
+                            ]
+
+                        else
+                            []
+                       )
+                )
+                [ text (chrCard s f |> Char.fromCode |> String.fromChar) ]
+    in
+    div []
+        (List.indexedMap
+            previewCard
+            (List.take previewSize (List.reverse pile))
+        )
+
+
 viewInGame : Game -> Maybe Selection -> Html Msg
 viewInGame game selected =
     div
         []
-        (List.indexedMap (viewColumn 0.5 1.5 selected) game.columns
-            |> List.concat
-        )
+        [ div [] [ viewPile game.pile 4.0 0.3 ]
+        , div [] [ viewPreview game.preview selected 4.7 0.3 ]
+        , div []
+            -- columns
+            (List.indexedMap (viewColumn 0.5 1.5 selected) game.columns
+                |> List.concat
+            )
+        ]
 
 
 viewStart : Html msg
@@ -164,39 +227,55 @@ view model =
 --------
 
 
+type Msg
+    = Initialise (List Int)
+    | Select Selection
+    | Unselect
+    | DealPile
+    | ResetPile
+
+
 update msg model =
-    case msg of
-        Initialise shuffled ->
-            ( InGame { game = initGame shuffled, selection = Nothing }, Cmd.none )
+    ( updateModelOnly msg model, Cmd.none )
 
-        Select selection ->
-            let
-                newModel =
-                    case model of
-                        InGame m ->
-                            InGame { m | selection = Just selection }
 
-                        _ ->
-                            model
-            in
-            ( newModel, Cmd.none )
+updateModelOnly msg model =
+    case model of
+        InGame m ->
+            case msg of
+                Select selection ->
+                    InGame { m | selection = Just selection }
 
-        Unselect ->
-            let
-                newModel =
-                    case model of
-                        InGame m ->
-                            InGame { m | selection = Maybe.Nothing }
+                Unselect ->
+                    InGame { m | selection = Maybe.Nothing }
 
-                        _ ->
-                            model
-            in
-            ( newModel, Cmd.none )
+                ResetPile ->
+                    InGame { game = resetPile m.game, selection = Nothing }
+
+                Initialise shuffled ->
+                    InGame { game = initGame shuffled, selection = Nothing }
+
+                DealPile ->
+                    InGame { game = dealPile m.game, selection = Nothing }
+
+        _ ->
+            case msg of
+                Initialise shuffled ->
+                    InGame { game = initGame shuffled, selection = Nothing }
+
+                _ ->
+                    model
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.none
+
+
+
+--------
+-- INIT
+--------
 
 
 init : () -> ( Model, Cmd Msg )
