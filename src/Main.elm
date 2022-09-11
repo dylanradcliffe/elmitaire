@@ -74,6 +74,14 @@ viewColumn x y selected j column =
                 _ ->
                     False
 
+        isPrimarySelected ii jj =
+            case selected of
+                Just (SelectedColumn n m) ->
+                    (ii == n) && (jj == m)
+
+                _ ->
+                    False
+
         cardColour i s sel =
             if i < column.flipsAt then
                 "#000000"
@@ -106,9 +114,21 @@ viewColumn x y selected j column =
                  , style "left" (String.fromFloat (x + 0.7 * toFloat j) ++ "em")
                  , style "top" (String.fromFloat (y + 0.25 * toFloat i) ++ "em")
                  , style "color" (cardColour i s (isSelected i j))
-                 , onClick (Select (SelectedColumn i j))
                  ]
                     ++ cardStyles
+                    ++ (if i < column.flipsAt then
+                            []
+
+                        else
+                            [ onClick
+                                (if isPrimarySelected i j then
+                                    Unselect
+
+                                 else
+                                    Select (SelectedColumn i j)
+                                )
+                            ]
+                       )
                 )
                 [ text (cardChar i (Card s f)) ]
         )
