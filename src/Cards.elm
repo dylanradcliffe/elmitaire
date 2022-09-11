@@ -1,7 +1,7 @@
 --module Cards exposing (Card, Game, Suit, initGame)
 
 
-module Cards exposing (Card(..), Game, Suit(..), initGame)
+module Cards exposing (Card(..), Game, Suit(..), chrBase, initGame, suitColour)
 
 import Basics exposing (modBy)
 
@@ -83,3 +83,41 @@ initGame shuffledList =
     , columns =
         List.map (columnList (initDeck shuffledList)) (List.range 0 6)
     }
+
+
+chrBase s =
+    case s of
+        Spades ->
+            0x0001F0A0
+
+        Hearts ->
+            0x0001F0B0
+
+        Diamonds ->
+            0x0001F0C0
+
+        Clubs ->
+            0x0001F0D0
+
+
+suitColour s highlight =
+    let
+        baseColour =
+            case s of
+                Spades ->
+                    ( "#000000", "#87ed1a" )
+
+                Clubs ->
+                    ( "#000000", "#87ed1a" )
+
+                Hearts ->
+                    ( "#d10808", "#87ed1a" )
+
+                Diamonds ->
+                    ( "#d10808", "#87ed1a" )
+    in
+    if highlight then
+        Tuple.second baseColour
+
+    else
+        Tuple.first baseColour
