@@ -2,8 +2,9 @@ module Main exposing (main)
 
 --import Cards exposing (Card, Game, Suit, initGame)
 
+import Array
 import Browser exposing (sandbox)
-import Cards exposing (Card(..), Game, Suit(..), cardBackColour, chrBack, chrCard, dealPile, initGame, previewSize, resetPile, suitColour)
+import Cards exposing (Card(..), Game, Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
 import Debug exposing (toString)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -18,21 +19,19 @@ import Random.List
 -------
 
 
-type Selection
-    = SelectedColumn Int Int
-    | SelectedTarget Int
-    | SelectedPreview
-
-
-type Target
-    = TargetColumn Int
-    | TargetTarget Int
-
-
 type alias ModelGame =
     { game : Game
     , selection : Maybe Selection
     }
+
+
+anySelected maybeSelected =
+    case maybeSelected of
+        Just s ->
+            True
+
+        Nothing ->
+            False
 
 
 type Model
@@ -107,8 +106,8 @@ viewColumn x y selected j column =
 
                         else
                             [ onClick
-                                (if isPrimarySelected i j then
-                                    Unselect
+                                (if anySelected selected then
+                                    Targeting (TargetColumn j)
 
                                  else
                                     Select (SelectedColumn i j)
@@ -172,7 +171,7 @@ viewPreview pile selected x y =
                     ++ cardStyles
                     ++ (if i == previewSize - 1 then
                             [ onClick
-                                (if isSelected i then
+                                (if anySelected selected then
                                     Unselect
 
                                  else
@@ -201,7 +200,7 @@ viewInGame game selected =
         , div [] [ viewPreview game.preview selected 4.7 0.3 ]
         , div []
             -- columns
-            (List.indexedMap (viewColumn 0.5 1.5 selected) game.columns
+            (List.indexedMap (viewColumn 0.5 1.5 selected) (Array.toList game.columns)
                 |> List.concat
             )
         ]
@@ -230,6 +229,7 @@ view model =
 type Msg
     = Initialise (List Int)
     | Select Selection
+    | Targeting Target
     | Unselect
     | DealPile
     | ResetPile
@@ -246,8 +246,11 @@ updateModelOnly msg model =
                 Select selection ->
                     InGame { m | selection = Just selection }
 
+                Targeting target ->
+                    InGame (executeTarget m target)
+
                 Unselect ->
-                    InGame { m | selection = Maybe.Nothing }
+                    InGame { m | selection = Nothing }
 
                 ResetPile ->
                     InGame { game = resetPile m.game, selection = Nothing }
@@ -265,6 +268,16 @@ updateModelOnly msg model =
 
                 _ ->
                     model
+
+
+executeTarget : ModelGame -> Target -> ModelGame
+executeTarget game target =
+    case game.selection of
+        Nothing ->
+            game
+
+        Just curSel ->
+            { game = moveCards game.game curSel target, selection = Nothing }
 
 
 subscriptions : Model -> Sub Msg
