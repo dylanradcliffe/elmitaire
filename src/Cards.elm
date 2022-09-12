@@ -181,6 +181,15 @@ cardFromColumns columns i j =
         |> Array.get i
 
 
+lastCardFromColumns : Array Column -> Int -> Maybe Card
+lastCardFromColumns columns j =
+    Array.get j columns
+        |> withDefault { cards = [], flipsAt = 0 }
+        |> .cards
+        |> List.reverse
+        |> List.head
+
+
 cardFromSelection : Game -> Selection -> Maybe Card
 cardFromSelection game sel =
     case sel of
@@ -200,7 +209,7 @@ cardFromTarget : Game -> Target -> Maybe Card
 cardFromTarget game tar =
     case tar of
         TargetColumn i ->
-            cardFromColumns game.columns i i
+            lastCardFromColumns game.columns i
 
         TargetGoal i ->
             Array.fromList game.goals
