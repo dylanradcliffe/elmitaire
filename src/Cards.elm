@@ -5,7 +5,7 @@ module Cards exposing (Card(..), Game, Selection(..), Suit(..), Target(..), card
 
 import Array exposing (Array)
 import Basics exposing (modBy)
-import Html exposing (s)
+import Html exposing (col, s)
 import Maybe exposing (andThen, withDefault)
 
 
@@ -226,13 +226,137 @@ compatibleColumnTarget (Card originSuit originFace) (Card targetSuit targetFace)
     xor (suitRed originSuit) (suitRed targetSuit) && (originFace == targetFace - 1)
 
 
+columnRemoveCards : Column -> Int -> ( Column, List Card )
+columnRemoveCards column i =
+    ( { cards = List.take i column.cards
+      , flipsAt = min column.flipsAt (i - 1)
+      }
+    , List.drop i column.cards
+    )
+
+
+columnAddCards : Column -> List Card -> Column
+columnAddCards column cards =
+    { column | cards = column.cards ++ cards }
+
+
+moveCardsFromColumn : Int -> Int -> Game -> ( Game, List Card )
+moveCardsFromColumn i j game =
+    let
+        oldColumn =
+            Array.get j game.columns
+                |> withDefault { cards = [], flipsAt = 0 }
+
+        ( newColumn, takenCards ) =
+            columnRemoveCards oldColumn i
+
+        newColumns =
+            Array.set j newColumn game.columns
+    in
+    ( { game | columns = newColumns }
+    , takenCards
+    )
+
+
+moveCardsToColumn : Int -> ( Game, List Card ) -> Game
+moveCardsToColumn j ( game, cards ) =
+    let
+        oldColumn =
+            Array.get j game.columns
+                |> withDefault { cards = [], flipsAt = 0 }
+
+        newColumn =
+            columnAddCards oldColumn cards
+
+        newColumns =
+            Array.set j newColumn game.columns
+    in
+    { game | columns = newColumns }
+
+
+moveCardsToGoal : Int -> ( Game, List Card ) -> Game
+moveCardsToGoal i ( game, cards ) =
+    game
+
+
+
+-- todo
+
+
+moveCardsFromPreview : Game -> ( Game, List Card )
+moveCardsFromPreview game =
+    let
+        newPreview =
+            List.take (List.length game.preview - 1) game.preview
+
+        takenCards =
+            List.drop (List.length game.preview - 1) game.preview
+    in
+    ( { game | preview = newPreview }
+    , takenCards
+    )
+
+
+moveCardsFromGoal : i -> Game -> ( Game, List Card )
+moveCardsFromGoal i game =
+    -- to fill in
+    ( game, [] )
+
+
+findMoveCards : Game -> Selection -> Target -> ( Maybe Card, Maybe Card )
+findMoveCards g s t =
+    ( cardFromSelection g s
+    , cardFromTarget g t
+    )
+
+
+compatibleTarget : Target -> Card -> Card -> Bool
+compatibleTarget target selCard tarCard =
+    case target of
+        TargetColumn _ ->
+            compatibleColumnTarget selCard tarCard
+
+        _ ->
+            False
+
+
 moveCards : Game -> Selection -> Target -> Game
 moveCards g s t =
-    case cardFromSelection g s of
-        Nothing ->
+    case findMoveCards g s t of
+        ( Just selCard, Just tarCard ) ->
+            let
+                source =
+                    case s of
+                        SelectedColumn i j ->
+                            moveCardsFromColumn i j
+
+                        SelectedPreview ->
+                            moveCardsFromPreview
+
+                        SelectedGoal i ->
+                            moveCardsFromGoal i
+
+                target =
+                    case t of
+                        TargetColumn j ->
+                            moveCardsToColumn j
+
+                        TargetGoal i ->
+                            moveCardsToGoal i
+            in
+            if compatibleTarget t selCard tarCard then
+                source g
+                    |> target
+
+            else
+                g
+
+        _ ->
             g
 
-        Just selCard ->
+
+
+{--Just selCard ->
             case cardFromTarget g t of
                 Nothing ->
                     g
@@ -260,3 +384,4 @@ moveCards g s t =
 
                         TargetGoal i ->
                             g
+--}

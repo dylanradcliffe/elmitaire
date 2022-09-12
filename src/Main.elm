@@ -188,7 +188,7 @@ viewPreview pile selected x y =
     div []
         (List.indexedMap
             previewCard
-            (List.take previewSize (List.reverse pile))
+            (List.reverse (List.take previewSize (List.reverse pile)))
         )
 
 
