@@ -62,16 +62,22 @@ cardStyles side =
             , style "line-height" "0.94em"
             , style "font-family" "Arial"
             ]
+
+        boxStyle =
+            [ style "width" "0.52em", style "height" "0.85em", style "margin-left" "0.1em", style "margin-top" "0.05em" ]
     in
     case side of
         FaceSide (Card suit n) selected ->
-            common ++ [ style "border-style" "none", style "color" (suitColour suit selected) ]
+            common
+                ++ [ style "border-style" "none", style "color" (suitColour suit selected) ]
 
         BackSide ->
             common ++ [ style "border-style" "none", style "color" cardBackColour ]
 
         Space ->
-            common ++ [ style "border-style" "dotted", style "color" "white" ]
+            common
+                ++ [ style "border-style" "dotted", style "color" "white" ]
+                ++ boxStyle
 
 
 viewCard : CardSide -> Float -> Float -> Maybe Msg -> Html Msg
@@ -95,7 +101,11 @@ viewCard cardSide x y onC =
 
                 Space ->
                     -- white joker, will be white anyway
-                    0x0001F0DF
+                    -- picking a thin character
+                    0x2595
+
+        -- picking a character that will be the right width
+        --0x259E
     in
     button
         ([ style "position" "absolute"
