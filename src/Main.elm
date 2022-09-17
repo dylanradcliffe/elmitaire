@@ -125,9 +125,19 @@ viewWon game =
         [ div
             [ style "font-size" "40px"
             , style "background-color" "white"
-            , style "line-height" "0.94em"
+
+            --, style "line-height" "0.94em"
             , style "font-family" "Arial"
-            , onClick ResetGame
+            , style "position" "absolute"
+            , style "top" "7em"
+            , style "z-index" "1"
+            , style "-webkit-user-select" "none"
+            , style "-ms-user-select" "none"
+            , style "user-select" "none"
+            , style "padding" "20px"
+            , style "border-style" "solid double"
+            , style "border-width" "5px"
+            , style "background-color" "green"
             ]
             [ text "You Won!"
             ]
@@ -139,8 +149,8 @@ viewWon game =
 
 viewControls : Game -> Html Msg
 viewControls game =
-    div []
-        ([ button [ onClick ResetGame ] [ text "Reset" ] ]
+    div [ style "display" "flex", style "justify-content" "right" ]
+        ([ button [ onClick ResetGame ] [ text "Reset Game" ] ]
             ++ viewWon game
         )
 
@@ -313,16 +323,18 @@ viewGoals x y maybeSel arr =
 viewInGame : Game -> Maybe Selection -> Html Msg
 viewInGame game selected =
     div
-        []
+        [ style "display" "flex", style "justify-content" "center" ]
         [ div [] [ viewControls game ]
-        , div []
-            -- columns
-            (List.indexedMap (viewColumn 0.5 1.5 selected) (Array.toList game.columns)
-                |> List.concat
-            )
-        , div [] (viewGoals 0.5 0.3 selected game.goals)
-        , div [] [ viewPile game.pile 3.5 0.3 ]
-        , div [] [ viewPreview game.preview selected 4.2 0.3 ]
+        , div [ style "position" "relative", style "height" "500px" ]
+            [ div []
+                -- columns
+                (List.indexedMap (viewColumn -3.0 1.5 selected) (Array.toList game.columns)
+                    |> List.concat
+                )
+            , div [] (viewGoals -3.0 0.3 selected game.goals)
+            , div [] [ viewPile game.pile 0.0 0.3 ]
+            , div [] [ viewPreview game.preview selected 0.7 0.3 ]
+            ]
         ]
 
 
