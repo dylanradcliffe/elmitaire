@@ -64,7 +64,7 @@ type alias Column =
 
 type alias Game =
     { goals : List Goal
-    , preview : List Card
+    , preview : List Card -- first one is the one on "top"
     , pile : List Card
     , columns : Array Column
     }
@@ -91,12 +91,15 @@ initGame shuffledList =
 
 resetPile : Game -> Game
 resetPile game =
-    { game | pile = game.preview, preview = [] }
+    { game | pile = List.reverse game.preview, preview = [] }
 
 
 dealPile : Game -> Game
 dealPile game =
-    { game | preview = game.preview ++ List.take previewSize game.pile, pile = List.drop previewSize game.pile }
+    { game
+        | preview = (List.take previewSize game.pile |> List.reverse) ++ game.preview
+        , pile = List.drop previewSize game.pile
+    }
 
 
 chrBase s =
@@ -197,7 +200,7 @@ cardFromSelection game sel =
             cardFromColumns game.columns i j
 
         SelectedPreview ->
-            List.reverse game.preview |> List.head
+            List.head game.preview
 
         SelectedGoal i ->
             Array.fromList game.goals
@@ -296,10 +299,10 @@ moveCardsFromPreview : Game -> ( Game, List Card )
 moveCardsFromPreview game =
     let
         newPreview =
-            List.take (List.length game.preview - 1) game.preview
+            List.drop 1 game.preview
 
         takenCards =
-            List.drop (List.length game.preview - 1) game.preview
+            List.take 1 game.preview
     in
     ( { game | preview = newPreview }
     , takenCards
@@ -362,35 +365,3 @@ moveCards g s t =
 
         _ ->
             g
-
-
-
-{--Just selCard ->
-            case cardFromTarget g t of
-                Nothing ->
-                    g
-
-                Just tarCard ->
-                    case t of
-                        TargetColumn i ->
-                            if compatibleColumnTarget selCard tarCard then
-                                case s of
-                                    SelectedColumn n m ->
-                                        let
-                                            newOrig =
-                                                List.take (n - 1) (Array.get m g.columns)
-
-                                            newTarg =
-                                                List.take (Array.get i g.columns)
-                                        in
-                                        g
-
-                                    _ ->
-                                        g
-
-                            else
-                                g
-
-                        TargetGoal i ->
-                            g
---}

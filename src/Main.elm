@@ -39,22 +39,78 @@ type Model
     | InGame ModelGame
 
 
+type CardSide
+    = FaceSide Card Bool
+    | BackSide
+    | Space
+
+
 
 --------
 -- VIEW
 --------
 
 
-cardStyles =
-    [ style "font-size" "160px"
-    , style "-webkit-user-select" "none"
-    , style "-ms-user-select" "none"
-    , style "user-select" "none"
-    , style "background-color" "white"
-    , style "line-height" "0.94em"
-    , style "font-family" "Arial"
-    , style "border-style" "none"
-    ]
+cardStyles side =
+    let
+        common =
+            [ style "font-size" "160px"
+            , style "-webkit-user-select" "none"
+            , style "-ms-user-select" "none"
+            , style "user-select" "none"
+            , style "background-color" "white"
+            , style "line-height" "0.94em"
+            , style "font-family" "Arial"
+            ]
+    in
+    case side of
+        FaceSide (Card suit n) selected ->
+            common ++ [ style "border-style" "none", style "color" (suitColour suit selected) ]
+
+        BackSide ->
+            common ++ [ style "border-style" "none", style "color" cardBackColour ]
+
+        Space ->
+            common ++ [ style "border-style" "dotted", style "color" "white" ]
+
+
+viewCard : CardSide -> Float -> Float -> Maybe Msg -> Html Msg
+viewCard cardSide x y onC =
+    let
+        ocParam =
+            case onC of
+                Just oc ->
+                    [ onClick oc ]
+
+                Nothing ->
+                    []
+
+        cardc =
+            case cardSide of
+                FaceSide (Card suit n) sel ->
+                    chrCard suit n
+
+                BackSide ->
+                    chrBack
+
+                Space ->
+                    -- white joker, will be white anyway
+                    0x0001F0DF
+    in
+    button
+        ([ style "position" "absolute"
+         , style "left" (String.fromFloat x ++ "em")
+         , style "top" (String.fromFloat y ++ "em")
+         ]
+            ++ ocParam
+            ++ cardStyles cardSide
+        )
+        [ text
+            (cardc
+                |> Char.fromCode
+                |> String.fromChar
+            )
+        ]
 
 
 viewColumn x y selected j column =
@@ -75,12 +131,12 @@ viewColumn x y selected j column =
                 _ ->
                     False
 
-        cardColour i s sel =
+        cardSide i c sel =
             if i < column.flipsAt then
-                cardBackColour
+                BackSide
 
             else
-                suitColour s sel
+                FaceSide c sel
 
         cardChar i (Card s f) =
             (if i < column.flipsAt then
@@ -94,60 +150,40 @@ viewColumn x y selected j column =
     in
     List.indexedMap
         (\i (Card s f) ->
-            button
-                ([ style "position" "absolute"
-                 , style "left" (String.fromFloat (x + 0.7 * toFloat j) ++ "em")
-                 , style "top" (String.fromFloat (y + 0.25 * toFloat i) ++ "em")
-                 , style "color" (cardColour i s (isSelected i j))
-                 ]
-                    ++ cardStyles
-                    ++ (if i < column.flipsAt then
-                            []
+            viewCard (cardSide i (Card s f) (isSelected i j))
+                (x + 0.7 * toFloat j)
+                (y + 0.25 * toFloat i)
+                (Just
+                    (if anySelected selected then
+                        Targeting (TargetColumn j)
 
-                        else
-                            [ onClick
-                                (if anySelected selected then
-                                    Targeting (TargetColumn j)
-
-                                 else
-                                    Select (SelectedColumn i j)
-                                )
-                            ]
-                       )
+                     else
+                        Select (SelectedColumn i j)
+                    )
                 )
-                [ text (cardChar i (Card s f)) ]
         )
         column.cards
 
 
 viewPile : List Card -> Float -> Float -> Html Msg
 viewPile pile x y =
-    button
-        ([ style "position" "absolute"
-         , style "left" (String.fromFloat x ++ "em")
-         , style "top" (String.fromFloat y ++ "em")
-         , style "color" cardBackColour
-         , onClick
+    viewCard
+        (if List.isEmpty pile then
+            Space
+
+         else
+            BackSide
+        )
+        x
+        y
+        (Just
             (if List.isEmpty pile then
                 ResetPile
 
              else
                 DealPile
             )
-         ]
-            ++ cardStyles
         )
-        [ text
-            (if List.isEmpty pile then
-                -- Em Space
-                0x2003 |> Char.fromCode |> String.fromChar
-
-             else
-                chrBack
-                    |> Char.fromCode
-                    |> String.fromChar
-            )
-        ]
 
 
 viewPreview : List Card -> Maybe Selection -> Float -> Float -> Html Msg
@@ -156,39 +192,32 @@ viewPreview pile selected x y =
         isSelected ii =
             case selected of
                 Just SelectedPreview ->
-                    ii == previewSize - 1
+                    ii == 0
 
                 _ ->
                     False
 
-        previewCard i (Card s f) =
-            button
-                ([ style "position" "absolute"
-                 , style "left" (String.fromFloat (x + 0.25 * toFloat i) ++ "em")
-                 , style "top" (String.fromFloat y ++ "em")
-                 , style "color" (suitColour s (isSelected i))
-                 ]
-                    ++ cardStyles
-                    ++ (if i == previewSize - 1 then
-                            [ onClick
-                                (if anySelected selected then
-                                    Unselect
+        previewCard n i c =
+            viewCard (FaceSide c (isSelected i))
+                (x + 0.25 * toFloat (n - i))
+                y
+                (Just
+                    (if anySelected selected then
+                        Unselect
 
-                                 else
-                                    Select SelectedPreview
-                                )
-                            ]
-
-                        else
-                            []
-                       )
+                     else
+                        Select SelectedPreview
+                    )
                 )
-                [ text (chrCard s f |> Char.fromCode |> String.fromChar) ]
+
+        visiblePreview =
+            List.take previewSize pile
     in
     div []
         (List.indexedMap
-            previewCard
-            (List.reverse (List.take previewSize (List.reverse pile)))
+            (previewCard (List.length visiblePreview))
+            visiblePreview
+            |> List.reverse
         )
 
 
