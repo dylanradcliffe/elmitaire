@@ -4,7 +4,7 @@ module Main exposing (main)
 
 import Array
 import Browser exposing (sandbox)
-import Cards exposing (Card(..), Game, Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
+import Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
 import Debug exposing (toString)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -113,7 +113,27 @@ viewCard cardSide x y onC =
         ]
 
 
+viewColumn : Float -> Float -> Maybe Selection -> Int -> Column -> List (Html Msg)
 viewColumn x y selected j column =
+    if List.length column.cards > 0 then
+        viewColumnNonEmpty x y selected j column
+
+    else
+        -- if no cards left in column
+        [ viewCard Space
+            (x + 0.7 * toFloat j)
+            y
+            (if anySelected selected then
+                Just (Targeting (TargetColumn j))
+
+             else
+                Nothing
+            )
+        ]
+
+
+viewColumnNonEmpty : Float -> Float -> Maybe Selection -> Int -> Column -> List (Html Msg)
+viewColumnNonEmpty x y selected j column =
     let
         isSelected ii jj =
             case selected of
@@ -221,6 +241,25 @@ viewPreview pile selected x y =
         )
 
 
+viewGoal : Float -> Float -> Maybe Selection -> Int -> Goal -> Html Msg
+viewGoal x y maybeSel i (Goal cards) =
+    let
+        xx =
+            x + 0.7 * toFloat i
+    in
+    case List.head cards of
+        Just card ->
+            viewCard (FaceSide card False) xx y Nothing
+
+        Nothing ->
+            viewCard Space xx y Nothing
+
+
+viewGoals : Float -> Float -> Maybe Selection -> List Goal -> List (Html Msg)
+viewGoals x y maybeSel =
+    List.indexedMap (viewGoal x y maybeSel)
+
+
 viewInGame : Game -> Maybe Selection -> Html Msg
 viewInGame game selected =
     div
@@ -232,6 +271,7 @@ viewInGame game selected =
             (List.indexedMap (viewColumn 0.5 1.5 selected) (Array.toList game.columns)
                 |> List.concat
             )
+        , div [] (viewGoals 0.5 0.3 selected game.goals)
         ]
 
 

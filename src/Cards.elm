@@ -1,7 +1,7 @@
 --module Cards exposing (Card, Game, Suit, initGame)
 
 
-module Cards exposing (Card(..), Game, Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrBase, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
+module Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrBase, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
 
 import Array exposing (Array)
 import Basics exposing (modBy)
@@ -49,11 +49,9 @@ initDeck cardList =
     List.map cardNumbertoCard cardList
 
 
-type alias Goal =
-    { card :
-        List Card
-    , suit : Suit
-    }
+type Goal
+    = -- first card is on top
+      Goal (List Card)
 
 
 type alias Column =
@@ -80,7 +78,7 @@ initGame shuffledList =
             in
             { cards = fullList, flipsAt = n }
     in
-    { goals = []
+    { goals = [ Goal [], Goal [], Goal [], Goal [] ]
     , preview = []
     , pile = initDeck (List.drop 28 shuffledList)
     , columns =
@@ -205,7 +203,7 @@ cardFromSelection game sel =
         SelectedGoal i ->
             Array.fromList game.goals
                 |> Array.get i
-                |> Maybe.andThen (\g -> List.head g.card)
+                |> Maybe.andThen (\(Goal cards) -> List.head cards)
 
 
 cardFromTarget : Game -> Target -> Maybe Card
@@ -217,7 +215,7 @@ cardFromTarget game tar =
         TargetGoal i ->
             Array.fromList game.goals
                 |> Array.get i
-                |> Maybe.andThen (\g -> List.head g.card)
+                |> Maybe.andThen (\(Goal cards) -> List.head cards)
 
 
 suitRed : Suit -> Bool
