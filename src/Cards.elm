@@ -184,13 +184,12 @@ type Target
     | TargetGoal Int
 
 
-cardFromColumns : Array Column -> Int -> Int -> Maybe Card
-cardFromColumns columns i j =
+cardsFromColumns : Array Column -> Int -> Int -> List Card
+cardsFromColumns columns i j =
     Array.get j columns
         |> withDefault { cards = [], flipsAt = 0 }
         |> .cards
-        |> Array.fromList
-        |> Array.get i
+        |> List.drop i
 
 
 lastCardFromColumns : Array Column -> Int -> Maybe Card
@@ -202,19 +201,20 @@ lastCardFromColumns columns j =
         |> List.head
 
 
-cardFromSelection : Game -> Selection -> Maybe Card
-cardFromSelection game sel =
+cardsFromSelection : Game -> Selection -> List Card
+cardsFromSelection game sel =
     case sel of
         SelectedColumn i j ->
-            cardFromColumns game.columns i j
+            cardsFromColumns game.columns i j
 
         SelectedPreview ->
-            List.head game.preview
+            List.take 1 game.preview
 
         SelectedGoal i ->
             game.goals
                 |> Array.get i
-                |> Maybe.andThen (\(Goal cards) -> List.head cards)
+                |> withDefault (Goal [])
+                |> (\(Goal cards) -> List.take 1 cards)
 
 
 cardFromTarget : Game -> Target -> Maybe Card
@@ -248,10 +248,6 @@ suitRed s =
 
 isGoalFull : Goal -> Bool
 isGoalFull (Goal cards) =
-    let
-        _ =
-            Debug.log "isGoalFull" ( cards, List.length cards == 13 )
-    in
     List.length cards == 13
 
 
@@ -263,14 +259,14 @@ isGameWon game =
         == 4
 
 
-compatibleColumnTarget : Maybe Card -> Maybe Card -> Bool
-compatibleColumnTarget ms mt =
-    case ms of
-        Nothing ->
+compatibleColumnTarget : List Card -> Maybe Card -> Bool
+compatibleColumnTarget selCards maybeTarget =
+    case selCards of
+        [] ->
             False
 
-        Just (Card originSuit originFace) ->
-            case mt of
+        (Card originSuit originFace) :: _ ->
+            case maybeTarget of
                 -- kings can go on nothing
                 Nothing ->
                     originFace == 12
@@ -279,19 +275,20 @@ compatibleColumnTarget ms mt =
                     xor (suitRed originSuit) (suitRed targetSuit) && (originFace == targetFace - 1)
 
 
-compatibleGoalTarget : Game -> Maybe Card -> Maybe Card -> Bool
-compatibleGoalTarget game ms mt =
-    case ms of
-        Nothing ->
-            False
-
-        Just (Card originSuit originFace) ->
-            case mt of
+compatibleGoalTarget : Game -> List Card -> Maybe Card -> Bool
+compatibleGoalTarget game selCards maybeTarget =
+    case selCards of
+        -- only allow one card to be selected!
+        (Card originSuit originFace) :: [] ->
+            case maybeTarget of
                 Nothing ->
                     originFace == 0
 
                 Just (Card targetSuit targetFace) ->
                     (originSuit == targetSuit) && (originFace == targetFace + 1)
+
+        _ ->
+            False
 
 
 columnRemoveCards : Column -> Int -> ( Column, List Card )
@@ -387,11 +384,15 @@ moveCardsFromGoal i game =
     ( game, [] )
 
 
+
+{--
+
 findMoveCards : Game -> Selection -> Target -> ( Maybe Card, Maybe Card )
 findMoveCards g s t =
     ( cardFromSelection g s
     , cardFromTarget g t
     )
+--}
 
 
 compatibleTarget : Game -> Target -> Selection -> Bool
@@ -400,15 +401,15 @@ compatibleTarget game target selection =
         tarCard =
             cardFromTarget game target
 
-        selCard =
-            cardFromSelection game selection
+        selCards =
+            cardsFromSelection game selection
     in
     case target of
         TargetColumn j ->
-            compatibleColumnTarget selCard tarCard
+            compatibleColumnTarget selCards tarCard
 
         TargetGoal i ->
-            compatibleGoalTarget game selCard tarCard
+            compatibleGoalTarget game selCards tarCard
 
 
 moveCards : Game -> Selection -> Target -> Game

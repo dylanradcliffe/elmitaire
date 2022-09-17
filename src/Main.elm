@@ -288,10 +288,18 @@ viewGoal x y maybeSel i (Goal cards) =
     let
         xx =
             x + 0.7 * toFloat i
+
+        isSelected =
+            case maybeSel of
+                Just (SelectedGoal ii) ->
+                    ii == i
+
+                _ ->
+                    False
     in
     case List.head cards of
         Just card ->
-            viewCard (FaceSide card False)
+            viewCard (FaceSide card isSelected)
                 xx
                 y
                 (Just
