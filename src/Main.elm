@@ -4,7 +4,7 @@ module Main exposing (main)
 
 import Array
 import Browser exposing (sandbox)
-import Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
+import Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrCard, dealPile, initGame, isGameWon, moveCards, previewSize, resetPile, suitColour)
 import Debug exposing (toString)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -100,12 +100,8 @@ viewCard cardSide x y onC =
                     chrBack
 
                 Space ->
-                    -- white joker, will be white anyway
-                    -- picking a thin character
+                    -- picking a thin character will be white anyway
                     0x2595
-
-        -- picking a character that will be the right width
-        --0x259E
     in
     button
         ([ style "position" "absolute"
@@ -121,6 +117,32 @@ viewCard cardSide x y onC =
                 |> String.fromChar
             )
         ]
+
+
+viewWon : Game -> List (Html Msg)
+viewWon game =
+    if isGameWon game then
+        [ div
+            [ style "font-size" "40px"
+            , style "background-color" "white"
+            , style "line-height" "0.94em"
+            , style "font-family" "Arial"
+            , onClick ResetGame
+            ]
+            [ text "You Won!"
+            ]
+        ]
+
+    else
+        []
+
+
+viewControls : Game -> Html Msg
+viewControls game =
+    div []
+        ([ button [ onClick ResetGame ] [ text "Reset" ] ]
+            ++ viewWon game
+        )
 
 
 viewColumn : Float -> Float -> Maybe Selection -> Int -> Column -> List (Html Msg)
@@ -229,7 +251,7 @@ viewPreview pile selected x y =
 
         previewCard n i c =
             viewCard (FaceSide c (isSelected i))
-                (x + 0.25 * toFloat (n - i))
+                (x + 0.25 * toFloat (n - i - 1))
                 y
                 (Just
                     (if anySelected selected then
@@ -259,29 +281,48 @@ viewGoal x y maybeSel i (Goal cards) =
     in
     case List.head cards of
         Just card ->
-            viewCard (FaceSide card False) xx y Nothing
+            viewCard (FaceSide card False)
+                xx
+                y
+                (Just
+                    (if anySelected maybeSel then
+                        Targeting (TargetGoal i)
+
+                     else
+                        Select (SelectedGoal i)
+                    )
+                )
 
         Nothing ->
-            viewCard Space xx y Nothing
+            viewCard Space
+                xx
+                y
+                (if anySelected maybeSel then
+                    Just (Targeting (TargetGoal i))
+
+                 else
+                    Nothing
+                )
 
 
-viewGoals : Float -> Float -> Maybe Selection -> List Goal -> List (Html Msg)
-viewGoals x y maybeSel =
-    List.indexedMap (viewGoal x y maybeSel)
+viewGoals : Float -> Float -> Maybe Selection -> Array.Array Goal -> List (Html Msg)
+viewGoals x y maybeSel arr =
+    List.indexedMap (viewGoal x y maybeSel) (Array.toList arr)
 
 
 viewInGame : Game -> Maybe Selection -> Html Msg
 viewInGame game selected =
     div
         []
-        [ div [] [ viewPile game.pile 4.0 0.3 ]
-        , div [] [ viewPreview game.preview selected 4.7 0.3 ]
+        [ div [] [ viewControls game ]
         , div []
             -- columns
             (List.indexedMap (viewColumn 0.5 1.5 selected) (Array.toList game.columns)
                 |> List.concat
             )
         , div [] (viewGoals 0.5 0.3 selected game.goals)
+        , div [] [ viewPile game.pile 3.5 0.3 ]
+        , div [] [ viewPreview game.preview selected 4.2 0.3 ]
         ]
 
 
@@ -312,41 +353,66 @@ type Msg
     | Unselect
     | DealPile
     | ResetPile
+    | ResetGame
+
+
+updateModelOnlyIngameNotWon msg m =
+    case msg of
+        Select selection ->
+            ( InGame { m | selection = Just selection }, Cmd.none )
+
+        Targeting target ->
+            ( InGame (executeTarget m target), Cmd.none )
+
+        Unselect ->
+            ( InGame { m | selection = Nothing }, Cmd.none )
+
+        ResetPile ->
+            ( InGame { game = resetPile m.game, selection = Nothing }, Cmd.none )
+
+        Initialise shuffled ->
+            ( InGame { game = initGame shuffled, selection = Nothing }, Cmd.none )
+
+        DealPile ->
+            ( InGame { game = dealPile m.game, selection = Nothing }, Cmd.none )
+
+        ResetGame ->
+            ( InGame m, resetGame )
+
+
+updateModelOnlyIngameWon msg m =
+    case msg of
+        Initialise shuffled ->
+            ( InGame { game = initGame shuffled, selection = Nothing }, Cmd.none )
+
+        ResetGame ->
+            ( InGame m, resetGame )
+
+        -- ignore other messages if won
+        _ ->
+            ( InGame m, Cmd.none )
+
+
+updateModelOnlyIngame msg m =
+    if isGameWon m.game then
+        updateModelOnlyIngameWon msg m
+
+    else
+        updateModelOnlyIngameNotWon msg m
 
 
 update msg model =
-    ( updateModelOnly msg model, Cmd.none )
-
-
-updateModelOnly msg model =
     case model of
         InGame m ->
-            case msg of
-                Select selection ->
-                    InGame { m | selection = Just selection }
-
-                Targeting target ->
-                    InGame (executeTarget m target)
-
-                Unselect ->
-                    InGame { m | selection = Nothing }
-
-                ResetPile ->
-                    InGame { game = resetPile m.game, selection = Nothing }
-
-                Initialise shuffled ->
-                    InGame { game = initGame shuffled, selection = Nothing }
-
-                DealPile ->
-                    InGame { game = dealPile m.game, selection = Nothing }
+            updateModelOnlyIngame msg m
 
         _ ->
             case msg of
                 Initialise shuffled ->
-                    InGame { game = initGame shuffled, selection = Nothing }
+                    ( InGame { game = initGame shuffled, selection = Nothing }, Cmd.none )
 
                 _ ->
-                    model
+                    ( model, Cmd.none )
 
 
 executeTarget : ModelGame -> Target -> ModelGame
@@ -370,9 +436,13 @@ subscriptions model =
 --------
 
 
+resetGame =
+    generate Initialise (Random.List.shuffle (List.range 0 52))
+
+
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( Start, generate Initialise (Random.List.shuffle (List.range 0 52)) )
+    ( Start, resetGame )
 
 
 

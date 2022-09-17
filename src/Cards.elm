@@ -1,7 +1,7 @@
 --module Cards exposing (Card, Game, Suit, initGame)
 
 
-module Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrBase, chrCard, dealPile, initGame, moveCards, previewSize, resetPile, suitColour)
+module Cards exposing (Card(..), Column, Game, Goal(..), Selection(..), Suit(..), Target(..), cardBackColour, chrBack, chrBase, chrCard, dealPile, initGame, isGameWon, moveCards, previewSize, resetPile, suitColour)
 
 import Array exposing (Array)
 import Basics exposing (modBy)
@@ -61,7 +61,7 @@ type alias Column =
 
 
 type alias Game =
-    { goals : List Goal
+    { goals : Array Goal
     , preview : List Card -- first one is the one on "top"
     , pile : List Card
     , columns : Array Column
@@ -78,13 +78,24 @@ initGame shuffledList =
             in
             { cards = fullList, flipsAt = n }
     in
-    { goals = [ Goal [], Goal [], Goal [], Goal [] ]
+    { goals = Array.fromList [ Goal [], Goal [], Goal [], Goal [] ]
     , preview = []
     , pile = initDeck (List.drop 28 shuffledList)
     , columns =
         List.map (columnList (initDeck shuffledList)) (List.range 0 6)
             |> Array.fromList
     }
+
+
+
+{--
+    { goals =
+        Array.fromList (List.map (\x -> Goal (List.reverse (initDeck (List.range (x * 13) (x * 13 + 11))))) (List.range 0 3))
+    , preview = []
+    , pile = []
+    , columns = Array.fromList (List.map (\x -> { cards = x, flipsAt = 0 }) [ [ Card Spades 12 ], [ Card Hearts 12 ], [ Card Diamonds 12 ], [ Card Clubs 12 ] ])
+    }
+    --}
 
 
 resetPile : Game -> Game
@@ -201,7 +212,7 @@ cardFromSelection game sel =
             List.head game.preview
 
         SelectedGoal i ->
-            Array.fromList game.goals
+            game.goals
                 |> Array.get i
                 |> Maybe.andThen (\(Goal cards) -> List.head cards)
 
@@ -213,7 +224,7 @@ cardFromTarget game tar =
             lastCardFromColumns game.columns i
 
         TargetGoal i ->
-            Array.fromList game.goals
+            game.goals
                 |> Array.get i
                 |> Maybe.andThen (\(Goal cards) -> List.head cards)
 
@@ -231,9 +242,56 @@ suitRed s =
             True
 
 
-compatibleColumnTarget : Card -> Card -> Bool
-compatibleColumnTarget (Card originSuit originFace) (Card targetSuit targetFace) =
-    xor (suitRed originSuit) (suitRed targetSuit) && (originFace == targetFace - 1)
+
+-- Need to check as can only have one goal per suit
+
+
+isGoalFull : Goal -> Bool
+isGoalFull (Goal cards) =
+    let
+        _ =
+            Debug.log "isGoalFull" ( cards, List.length cards == 13 )
+    in
+    List.length cards == 13
+
+
+isGameWon : Game -> Bool
+isGameWon game =
+    (List.filter isGoalFull (Array.toList game.goals)
+        |> List.length
+    )
+        == 4
+
+
+compatibleColumnTarget : Maybe Card -> Maybe Card -> Bool
+compatibleColumnTarget ms mt =
+    case ms of
+        Nothing ->
+            False
+
+        Just (Card originSuit originFace) ->
+            case mt of
+                -- kings can go on nothing
+                Nothing ->
+                    originFace == 12
+
+                Just (Card targetSuit targetFace) ->
+                    xor (suitRed originSuit) (suitRed targetSuit) && (originFace == targetFace - 1)
+
+
+compatibleGoalTarget : Game -> Maybe Card -> Maybe Card -> Bool
+compatibleGoalTarget game ms mt =
+    case ms of
+        Nothing ->
+            False
+
+        Just (Card originSuit originFace) ->
+            case mt of
+                Nothing ->
+                    originFace == 0
+
+                Just (Card targetSuit targetFace) ->
+                    (originSuit == targetSuit) && (originFace == targetFace + 1)
 
 
 columnRemoveCards : Column -> Int -> ( Column, List Card )
@@ -286,7 +344,23 @@ moveCardsToColumn j ( game, cards ) =
 
 moveCardsToGoal : Int -> ( Game, List Card ) -> Game
 moveCardsToGoal i ( game, cards ) =
-    game
+    let
+        oldGoal =
+            Array.get i game.goals
+                |> withDefault (Goal [])
+
+        oldGoalCards =
+            case oldGoal of
+                Goal c ->
+                    c
+
+        newGoal =
+            Goal (cards ++ oldGoalCards)
+
+        newGoals =
+            Array.set i newGoal game.goals
+    in
+    { game | goals = newGoals }
 
 
 
@@ -320,46 +394,48 @@ findMoveCards g s t =
     )
 
 
-compatibleTarget : Target -> Card -> Card -> Bool
-compatibleTarget target selCard tarCard =
+compatibleTarget : Game -> Target -> Selection -> Bool
+compatibleTarget game target selection =
+    let
+        tarCard =
+            cardFromTarget game target
+
+        selCard =
+            cardFromSelection game selection
+    in
     case target of
-        TargetColumn _ ->
+        TargetColumn j ->
             compatibleColumnTarget selCard tarCard
 
-        _ ->
-            False
+        TargetGoal i ->
+            compatibleGoalTarget game selCard tarCard
 
 
 moveCards : Game -> Selection -> Target -> Game
 moveCards g s t =
-    case findMoveCards g s t of
-        ( Just selCard, Just tarCard ) ->
-            let
-                source =
-                    case s of
-                        SelectedColumn i j ->
-                            moveCardsFromColumn i j
+    let
+        source =
+            case s of
+                SelectedColumn i j ->
+                    moveCardsFromColumn i j
 
-                        SelectedPreview ->
-                            moveCardsFromPreview
+                SelectedPreview ->
+                    moveCardsFromPreview
 
-                        SelectedGoal i ->
-                            moveCardsFromGoal i
+                SelectedGoal i ->
+                    moveCardsFromGoal i
 
-                target =
-                    case t of
-                        TargetColumn j ->
-                            moveCardsToColumn j
+        target =
+            case t of
+                TargetColumn j ->
+                    moveCardsToColumn j
 
-                        TargetGoal i ->
-                            moveCardsToGoal i
-            in
-            if compatibleTarget t selCard tarCard then
-                source g
-                    |> target
+                TargetGoal i ->
+                    moveCardsToGoal i
+    in
+    if compatibleTarget g t s then
+        source g
+            |> target
 
-            else
-                g
-
-        _ ->
-            g
+    else
+        g
