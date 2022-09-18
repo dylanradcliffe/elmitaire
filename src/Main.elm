@@ -422,6 +422,10 @@ updateModelOnlyIngame msg m =
 
 
 update msg model =
+    --let
+    --    _ =
+    --        Debug.log "update" ( msg, model )
+    --in
     case model of
         InGame m ->
             updateModelOnlyIngame msg m
@@ -457,7 +461,7 @@ subscriptions model =
 
 
 resetGame =
-    generate Initialise (Random.List.shuffle (List.range 0 52))
+    generate Initialise (Random.List.shuffle (List.range 0 51))
 
 
 init : () -> ( Model, Cmd Msg )

@@ -378,10 +378,24 @@ moveCardsFromPreview game =
     )
 
 
-moveCardsFromGoal : i -> Game -> ( Game, List Card )
+moveCardsFromGoal : Int -> Game -> ( Game, List Card )
 moveCardsFromGoal i game =
-    -- to fill in
-    ( game, [] )
+    let
+        oldGoal =
+            Array.get i game.goals
+
+        ( takenCards, newGoal ) =
+            case oldGoal of
+                Nothing ->
+                    ( [], Goal [] )
+
+                Just (Goal cards) ->
+                    ( List.take 1 cards, Goal (List.drop 1 cards) )
+
+        newGoals =
+            Array.set i newGoal game.goals
+    in
+    ( { game | goals = newGoals }, takenCards )
 
 
 
