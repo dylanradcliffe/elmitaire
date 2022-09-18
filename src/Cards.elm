@@ -95,7 +95,7 @@ initGame shuffledList =
     , pile = []
     , columns = Array.fromList (List.map (\x -> { cards = x, flipsAt = 0 }) [ [ Card Spades 12 ], [ Card Hearts 12 ], [ Card Diamonds 12 ], [ Card Clubs 12 ] ])
     }
-    --}
+--}
 
 
 resetPile : Game -> Game

@@ -76,7 +76,7 @@ cardStyles side =
 
         Space ->
             common
-                ++ [ style "border-style" "dotted", style "color" "white" ]
+                ++ [ style "border-style" "dotted", style "color" "white", style "border-width" "3px" ]
                 ++ boxStyle
 
 
@@ -104,7 +104,8 @@ viewCard cardSide x y onC =
                     0x2595
     in
     button
-        ([ style "position" "absolute"
+        ([ class "card"
+         , style "position" "absolute"
          , style "left" (String.fromFloat x ++ "em")
          , style "top" (String.fromFloat y ++ "em")
          ]
@@ -122,24 +123,10 @@ viewCard cardSide x y onC =
 viewWon : Game -> List (Html Msg)
 viewWon game =
     if isGameWon game then
-        [ div
-            [ style "font-size" "40px"
-            , style "background-color" "white"
-
-            --, style "line-height" "0.94em"
-            , style "font-family" "Arial"
-            , style "position" "absolute"
-            , style "top" "7em"
-            , style "z-index" "1"
-            , style "-webkit-user-select" "none"
-            , style "-ms-user-select" "none"
-            , style "user-select" "none"
-            , style "padding" "20px"
-            , style "border-style" "solid double"
-            , style "border-width" "5px"
-            , style "background-color" "green"
-            ]
-            [ text "You Won!"
+        [ div [ class "alert alert-success" ]
+            [ div [ style "text-align" "center" ]
+                [ text "You Won!"
+                ]
             ]
         ]
 
@@ -149,9 +136,20 @@ viewWon game =
 
 viewControls : Game -> Html Msg
 viewControls game =
-    div [ style "display" "flex", style "justify-content" "right" ]
-        ([ button [ onClick ResetGame ] [ text "Reset Game" ] ]
-            ++ viewWon game
+    div [ class "d-flex flex-column" ]
+        (viewWon game
+            ++ [ div
+                    [ class "d-flex flex-row-reverse", style "justify-content" "right", style "width" "75%" ]
+                    [ div [ class "p-2" ]
+                        [ a
+                            [ class "btn btn-primary"
+                            , href "#"
+                            , onClick ResetGame
+                            ]
+                            [ text "Reset Game" ]
+                        ]
+                    ]
+               ]
         )
 
 
@@ -331,17 +329,21 @@ viewGoals x y maybeSel arr =
 viewInGame : Game -> Maybe Selection -> Html Msg
 viewInGame game selected =
     div
-        [ style "display" "flex", style "justify-content" "center" ]
-        [ div [] [ viewControls game ]
-        , div [ style "position" "relative", style "height" "500px" ]
-            [ div []
-                -- columns
-                (List.indexedMap (viewColumn -3.0 1.5 selected) (Array.toList game.columns)
-                    |> List.concat
-                )
-            , div [] (viewGoals -3.0 0.3 selected game.goals)
-            , div [] [ viewPile game.pile 0.0 0.3 ]
-            , div [] [ viewPreview game.preview selected 0.7 0.3 ]
+        []
+        [ div []
+            [ viewControls game
+            , div [ style "display" "flex", style "justify-content" "center" ]
+                [ div [ style "position" "relative", style "height" "500px" ]
+                    [ div []
+                        -- columns
+                        (List.indexedMap (viewColumn -3.0 1.5 selected) (Array.toList game.columns)
+                            |> List.concat
+                        )
+                    , div [] (viewGoals -3.0 0.3 selected game.goals)
+                    , div [] [ viewPile game.pile 0.0 0.3 ]
+                    , div [] [ viewPreview game.preview selected 0.7 0.3 ]
+                    ]
+                ]
             ]
         ]
 
